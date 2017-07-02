@@ -1,27 +1,30 @@
-from hyperopt.pyll.base import *
+from __future__ import division
+from hyperopt.pyll import base
+from hyperopt.pyll.base import (
+    Literal, as_apply, Apply, dfs, scope, rec_eval, p0, Lambda, clone_merge
+)
 
 from nose import SkipTest
 from nose.tools import assert_raises
 import numpy as np
 
-from hyperopt.pyll import base
 
 def test_literal_pprint():
     l = Literal(5)
-    print str(l)
+    print(str(l))
     assert str(l) == '0 Literal{5}'
 
 
 def test_literal_apply():
     l0 = Literal([1, 2, 3])
-    print str(l0)
+    print(str(l0))
     assert str(l0) == '0 Literal{[1, 2, 3]}'
 
 
 def test_literal_unpacking():
     l0 = Literal([1, 2, 3])
     a, b, c = l0
-    print a
+    print(a)
     assert c.name == 'getitem'
     assert c.pos_args[0] is l0
     assert isinstance(c.pos_args[1], Literal)
@@ -95,7 +98,7 @@ def test_as_apply_dict_of_applies():
 
 
 def test_as_apply_nested_dict():
-    d = {'a': 9, 'b': {'c':11, 'd':12}}
+    d = {'a': 9, 'b': {'c': 11, 'd': 12}}
     ad = as_apply(d)
     assert isinstance(ad, Apply)
     assert ad.name == 'dict'
@@ -111,12 +114,12 @@ def test_as_apply_nested_dict():
 
 
 def test_dfs():
-    dd = as_apply({'c':11, 'd':12})
+    dd = as_apply({'c': 11, 'd': 12})
 
     d = {'a': 9, 'b': dd, 'y': dd, 'z': dd + 1}
     ad = as_apply(d)
     order = dfs(ad)
-    print [str(o) for o in order]
+    print([str(o) for o in order])
     assert order[0]._obj == 9
     assert order[1]._obj == 11
     assert order[2]._obj == 12
@@ -130,6 +133,7 @@ def test_dfs():
 @scope.define_info(o_len=2)
 def _test_foo():
     return 1, 2
+
 
 def test_o_len():
     obj = scope._test_foo()
@@ -152,9 +156,9 @@ def test_eval_arithmetic():
     assert (a - b).eval() == -1
     assert (a - b * c).eval() == -10
 
-    assert (a / b).eval() == 0   # int div
-    assert (b / a).eval() == 1   # int div
-    assert (c / a ).eval() == 2
+    assert (a // b).eval() == 0   # int div
+    assert (b // a).eval() == 1   # int div
+    assert (c / a).eval() == 2
     assert (4 / a).eval() == 2
     assert (a / 4.0).eval() == 0.5
 
@@ -175,14 +179,14 @@ def test_bincount():
         assert np.all(counts[:3] == 0)
 
         r = np.arange(10) + 3
-        counts = f(r, minlength=5) # -- ignore minlength
+        counts = f(r, minlength=5)  # -- ignore minlength
         assert isinstance(counts, np.ndarray)
         assert len(counts) == 13
         assert np.all(counts[3:] == 1)
         assert np.all(counts[:3] == 0)
 
         r = np.arange(10) + 3
-        counts = f(r, minlength=15) # -- pad to minlength
+        counts = f(r, minlength=15)  # -- pad to minlength
         assert isinstance(counts, np.ndarray)
         assert len(counts) == 15
         assert np.all(counts[:3] == 0)
@@ -190,23 +194,24 @@ def test_bincount():
         assert np.all(counts[13:] == 0)
 
         r = np.arange(10) % 3 + 3
-        counts = f(r, minlength=7) # -- pad to minlength
+        counts = f(r, minlength=7)  # -- pad to minlength
         assert list(counts) == [0, 0, 0, 4, 3, 3, 0]
 
     try:
         test_f(base._bincount_slow)
         test_f(base.bincount)
-    except TypeError, e:
+    except TypeError as e:
         if 'function takes at most 2 arguments' in str(e):
             raise SkipTest()
         raise
+
 
 def test_switch_and_Raise():
     i = Literal()
     ab = scope.switch(i, 'a', 'b', scope.Raise(Exception))
     assert rec_eval(ab, memo={i: 0}) == 'a'
     assert rec_eval(ab, memo={i: 1}) == 'b'
-    assert_raises(Exception, rec_eval, ab, memo={i:2})
+    assert_raises(Exception, rec_eval, ab, memo={i: 2})
 
 
 def test_kwswitch():
@@ -219,23 +224,19 @@ def test_kwswitch():
 
 def test_recursion():
     scope.define(Lambda('Fact', [('x', p0)],
-            expr=scope.switch(
-                p0 > 1,
-                1,
-                p0 * apply('Fact', p0 - 1))))
-    print scope.Fact(3)
-    #print rec_eval(scope.Fact(3))
+                 expr=scope.switch(p0 > 1, 1, p0 * base.apply('Fact', p0 - 1))))
+    print(scope.Fact(3))
     assert rec_eval(scope.Fact(3)) == 6
 
 
 def test_partial():
     add2 = scope.partial('add', 2)
-    print add2
+    print(add2)
     assert len(str(add2).split('\n')) == 3
 
     # add2 evaluates to a scope method
     thing = rec_eval(add2)
-    print thing
+    print(thing)
     assert 'SymbolTableEntry' in str(thing)
 
     # add2() evaluates to a failure because it's only a partial application
@@ -243,7 +244,7 @@ def test_partial():
 
     # add2(3) evaluates to 5 because we've filled in all the blanks
     thing = rec_eval(add2(3))
-    print thing
+    print(thing)
     assert thing == 5
 
 
@@ -272,6 +273,7 @@ def test_clone_merge():
     assert len_d > len(dfs(e))
     assert e.eval() == d.eval()
 
+
 def test_clone_merge_no_merge_literals():
     a, b, c = as_apply((2, 3, 2))
     d = (a + b) * (c + b)
@@ -281,7 +283,6 @@ def test_clone_merge_no_merge_literals():
     assert len_d == len(dfs(e))
     assert e.eval() == d.eval()
 
+
 def test_len():
     assert_raises(TypeError, len, scope.uniform(0, 1))
-
-
